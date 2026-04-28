@@ -33,10 +33,12 @@ ASYNC PATH
 | AWS CLI | configured with credentials for your account |
 | AWS CDK CLI | `npm install -g aws-cdk` |
 | CDK bootstrap | `cdk bootstrap` run at least once in your target account/region |
-| Bedrock model access | `anthropic.claude-haiku-4-5-20251001` enabled in **us-east-1** |
+| Bedrock model access | `anthropic.claude-haiku-4-5-20251001` — automatically enabled on first invocation |
 
-To enable Bedrock model access: AWS Console → Amazon Bedrock → Model access →
-check **Claude Haiku** → Request access.
+> **Note:** The AWS Bedrock Model access page has been retired. Serverless foundation models
+> (including Anthropic models) are now automatically enabled across all AWS commercial regions
+> when first invoked. No manual activation is required. First-time Anthropic users may need to
+> submit use case details before the model can be used.
 
 ---
 
@@ -177,8 +179,10 @@ A full day of live demoing costs pennies.
 the model. Wait a moment and retry; for a high-traffic demo consider requesting a
 quota increase in the AWS console.
 
-**`AccessDeniedException` from Bedrock** — confirm model access is enabled in
-**us-east-1** for `anthropic.claude-haiku-4-5-20251001`.
+**`AccessDeniedException` from Bedrock** — the model is enabled automatically on first
+invocation, but first-time Anthropic users may need to submit use case details via the
+AWS Console before access is granted. Check the Bedrock service page for any pending
+approval or account-level IAM/SCP restrictions.
 
 **Async result stays `pending` for >30 s** — check the async-worker Lambda logs in
 CloudWatch for errors. The SQS DLQ (`serverless-ai-demo-dlq`) will hold failed
