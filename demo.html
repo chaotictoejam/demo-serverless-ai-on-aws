@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serverless + AI: Naive vs Scalable</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f2ede6;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding: 28px 32px;
+    }
+
+    /* ── Header ── */
+    header { margin-bottom: 20px; }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      letter-spacing: -0.3px;
+    }
+
+    .config {
+      display: flex;
+      gap: 10px;
+    }
+
+    .config label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .config label:first-child { flex: 0 0 420px; }
+    .config label:last-child  { flex: 1; }
+
+    .config input {
+      padding: 8px 12px;
+      border: 1.5px solid #d6ccbe;
+      border-radius: 7px;
+      font-size: 13px;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .config input:focus { border-color: #6b7280; }
+    .config input[name="url"] { font-family: 'Courier New', monospace; font-size: 12px; }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      padding: 22px;
+      border: 1px solid #e4dbd0;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .panel-title { font-size: 15px; font-weight: 700; }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 5px;
+      letter-spacing: 0.2px;
+    }
+
+    .badge-red   { background: #fde8e8; color: #b91c1c; border: 1px solid #fca5a5; }
+    .badge-green { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+
+    /* ── Architecture diagram ── */
+    .arch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 18px;
+      min-height: 64px;
+    }
+
+    .node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 10px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.35;
+      text-align: center;
+      border: 1.5px solid;
+      transition: opacity 0.25s, box-shadow 0.25s, background 0.25s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Sync nodes */
+    .snode { background: #fff5f5; border-color: #fca5a5; color: #991b1b; opacity: 0.3; }
+    .snode.active { opacity: 1; animation: pulse-r 1.1s ease-in-out infinite; }
+    .snode.done   { opacity: 1; background: #fee2e2; border-color: #ef4444; animation: none; }
+
+    /* Async nodes */
+    .anode { background: #f0fdf4; border-color: #86efac; color: #15803d; opacity: 0.3; }
+    .anode.active { opacity: 1; animation: pulse-g 1.1s ease-in-out infinite; }
+    .anode.done   { opacity: 1; background: #dcfce7; border-color: #22c55e; animation: none; }
+
+    .arrow { color: #c4b5a0; font-size: 13px; flex-shrink: 0; }
+
+    @keyframes pulse-r {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
+      50%       { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
+    }
+    @keyframes pulse-g {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.45); }
+      50%       { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
+    }
+
+    /* ── Button ── */
+    .run-btn {
+      width: 100%;
+      padding: 11px;
+      border: 1.5px solid #1a1a1a;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: background 0.15s;
+      letter-spacing: -0.1px;
+    }
+
+    .run-btn:hover:not(:disabled) { background: #f2ede6; }
+    .run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Terminal ── */
+    .terminal {
+      background: #111;
+      border-radius: 9px;
+      padding: 14px 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 12.5px;
+      min-height: 108px;
+      max-height: 160px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+      scrollbar-width: thin;
+      scrollbar-color: #333 #111;
+    }
+
+    .t-placeholder { color: #444; }
+    .t-step   { color: #7dd3fc; }
+    .t-result { color: #4ade80; }
+    .t-error  { color: #f87171; }
+    .t-timing { color: #fbbf24; }
+
+    .terminal div { margin-bottom: 3px; }
+
+    /* ── Stats ── */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .stat-bar {
+      height: 3px;
+      border-radius: 2px;
+      margin-bottom: 5px;
+      transition: width 0.6s ease;
+    }
+
+    .stat-bar.red   { background: #ef4444; }
+    .stat-bar.green { background: #22c55e; }
+
+    .stat-value { font-size: 14px; font-weight: 800; }
+
+    /* ── Status ── */
+    .status {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #9ca3af;
+    }
+
+    .dot.running { background: #f59e0b; animation: blink 1s step-start infinite; }
+    .dot.done    { background: #22c55e; animation: none; }
+    .dot.error   { background: #ef4444; animation: none; }
+
+    @keyframes blink { 50% { opacity: 0.3; } }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      font-size: 13px;
+      color: #6b7280;
+      padding: 14px;
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid #e4dbd0;
+    }
+
+    footer strong { color: #1a1a1a; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Serverless + AI: Naive vs Scalable</h1>
+  <div class="config">
+    <label>
+      API Base URL
+      <input name="url" id="apiUrl" placeholder="https://abc123.execute-api.us-east-1.amazonaws.com/demo">
+    </label>
+    <label>
+      Prompt (shared)
+      <input id="prompt" value="Explain serverless in one sentence">
+    </label>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- ── SYNC PANEL ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Naive — synchronous</span>
+      <span class="badge badge-red">Blocking</span>
+    </div>
+
+    <div class="arch">
+      <div class="node snode" id="ss1">User</div>
+      <span class="arrow">→</span>
+      <div class="node snode" id="ss2">API GW<br>→ Lambda</div>
+      <span class="arrow">→</span>
+      <div class="node snode" id="ss3">Bedrock<br>waiting…</div>
+      <span class="arrow">→</span>
+      <div class="node snode" id="ss4">Response</div>
+    </div>
+
+    <button class="run-btn" id="syncBtn">Run synchronous demo</button>
+
+    <div class="terminal" id="syncOut">
+      <div class="t-placeholder">Click to run…</div>
+    </div>
+
+    <div class="stats">
+      <div>
+        <span class="stat-label">Response time</span>
+        <div class="stat-bar red" id="syncBar" style="width:0%"></div>
+        <span class="stat-value" id="syncTime">—</span>
+      </div>
+      <div>
+        <span class="stat-label">User experience</span>
+        <div class="stat-bar red" style="width:80%"></div>
+        <span class="stat-value" style="color:#ef4444">Blocked 🔴</span>
+      </div>
+    </div>
+
+    <div class="status" id="syncStatus">
+      <div class="dot" id="syncDot"></div>
+      <span id="syncMsg">Waiting for run…</span>
+    </div>
+  </div>
+
+  <!-- ── ASYNC PANEL ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Scalable — async</span>
+      <span class="badge badge-green">Non-blocking</span>
+    </div>
+
+    <div class="arch">
+      <div class="node anode" id="as1">User</div>
+      <span class="arrow">→</span>
+      <div class="node anode" id="as2">Lambda<br>ingest</div>
+      <span class="arrow">→</span>
+      <div class="node anode" id="as3">SQS<br>queue</div>
+      <span class="arrow">→</span>
+      <div class="node anode" id="as4">Worker<br>+ Bedrock</div>
+      <span class="arrow">→</span>
+      <div class="node anode" id="as5">Dynamo<br>result</div>
+    </div>
+
+    <button class="run-btn" id="asyncBtn">Run async demo</button>
+
+    <div class="terminal" id="asyncOut">
+      <div class="t-placeholder">Click to run…</div>
+    </div>
+
+    <div class="stats">
+      <div>
+        <span class="stat-label">API response time</span>
+        <div class="stat-bar green" id="asyncBar" style="width:0%"></div>
+        <span class="stat-value" id="asyncApiTime">—</span>
+      </div>
+      <div>
+        <span class="stat-label">User experience</span>
+        <div class="stat-bar green" style="width:10%"></div>
+        <span class="stat-value" style="color:#15803d">Instant ⚡</span>
+      </div>
+    </div>
+
+    <div class="status" id="asyncStatus">
+      <div class="dot" id="asyncDot"></div>
+      <span id="asyncMsg">Waiting for run…</span>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <strong>Same AI model &nbsp;·&nbsp; Same prompt</strong> &nbsp;·&nbsp;
+  Completely different user experience — because of architecture.
+</footer>
+
+<script>
+  // ── Persistence ───────────────────────────────────────────────────────────
+  const apiUrlEl = document.getElementById('apiUrl');
+  apiUrlEl.value = localStorage.getItem('demoApiUrl') || '';
+  apiUrlEl.addEventListener('input', () => localStorage.setItem('demoApiUrl', apiUrlEl.value));
+
+  function base() { return apiUrlEl.value.trim().replace(/\/$/, ''); }
+  function prompt() { return document.getElementById('prompt').value.trim(); }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function node(id, state) {
+    const el = document.getElementById(id);
+    el.classList.remove('active', 'done');
+    if (state) el.classList.add(state);
+  }
+
+  function resetNodes(prefix, count) {
+    for (let i = 1; i <= count; i++) node(`${prefix}${i}`, null);
+  }
+
+  function tlog(outId, text, cls = '') {
+    const out = document.getElementById(outId);
+    if (out.querySelector('.t-placeholder')) out.innerHTML = '';
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = text;
+    out.appendChild(d);
+    out.scrollTop = out.scrollHeight;
+  }
+
+  function setStatus(dotId, msgId, dotState, text) {
+    const dot = document.getElementById(dotId);
+    dot.className = `dot ${dotState}`;
+    document.getElementById(msgId).textContent = text;
+  }
+
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  // ── SYNC DEMO ─────────────────────────────────────────────────────────────
+  document.getElementById('syncBtn').addEventListener('click', async () => {
+    if (!base()) { alert('Paste the API Base URL above first.'); return; }
+    if (!prompt()) return;
+
+    const btn = document.getElementById('syncBtn');
+    btn.disabled = true;
+    document.getElementById('syncOut').innerHTML = '';
+    document.getElementById('syncTime').textContent = '—';
+    document.getElementById('syncBar').style.width = '0%';
+    resetNodes('ss', 4);
+    setStatus('syncDot', 'syncMsg', 'running', 'Sending request…');
+
+    // Step 1 — user fires the request
+    node('ss1', 'active');
+    tlog('syncOut', `POST /sync  "${prompt()}"`, 't-step');
+    await delay(120);
+
+    // Step 2 — API GW + Lambda invoked
+    node('ss1', 'done');
+    node('ss2', 'active');
+    tlog('syncOut', '→ API Gateway received, Lambda invoked', 't-step');
+    await delay(180);
+
+    // Step 3 — Bedrock call (real network, will block here)
+    node('ss2', 'done');
+    node('ss3', 'active');
+    tlog('syncOut', '→ Calling Bedrock… caller is now blocked', 't-step');
+    setStatus('syncDot', 'syncMsg', 'running', 'Waiting for Bedrock…');
+
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${base()}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt() }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const elapsed = Date.now() - t0;
+
+      // Step 4 — response arrived
+      node('ss3', 'done');
+      node('ss4', 'active');
+      await delay(160);
+      node('ss4', 'done');
+
+      tlog('syncOut', `← Response arrived after ${elapsed}ms`, 't-step');
+      tlog('syncOut', `"${data.response}"`, 't-result');
+      tlog('syncOut', `Bedrock latency: ${data.latency_ms}ms · Total: ${elapsed}ms`, 't-timing');
+
+      document.getElementById('syncTime').textContent = `${elapsed}ms`;
+      document.getElementById('syncBar').style.width = '80%';
+      setStatus('syncDot', 'syncMsg', 'done', `Done — caller waited the full ${elapsed}ms`);
+    } catch (err) {
+      node('ss3', null);
+      tlog('syncOut', `✗ ${err.message}`, 't-error');
+      setStatus('syncDot', 'syncMsg', 'error', 'Error — check the API URL and CORS');
+    }
+
+    btn.disabled = false;
+  });
+
+  // ── ASYNC DEMO ────────────────────────────────────────────────────────────
+  let pollTimer = null;
+
+  document.getElementById('asyncBtn').addEventListener('click', async () => {
+    if (!base()) { alert('Paste the API Base URL above first.'); return; }
+    if (!prompt()) return;
+
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+    const btn = document.getElementById('asyncBtn');
+    btn.disabled = true;
+    document.getElementById('asyncOut').innerHTML = '';
+    document.getElementById('asyncApiTime').textContent = '—';
+    document.getElementById('asyncBar').style.width = '0%';
+    resetNodes('as', 5);
+    setStatus('asyncDot', 'asyncMsg', 'running', 'Sending…');
+
+    // Step 1 — user sends
+    node('as1', 'active');
+    tlog('asyncOut', `POST /async  "${prompt()}"`, 't-step');
+
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${base()}/async`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt() }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const apiMs = Date.now() - t0;
+
+      // Step 2 — ingest returned instantly
+      node('as1', 'done');
+      node('as2', 'done');
+      tlog('asyncOut', `← 202 Accepted in ${apiMs}ms ⚡  (caller is FREE)`, 't-step');
+      tlog('asyncOut', `requestId: ${data.requestId}`, 't-result');
+
+      document.getElementById('asyncApiTime').textContent = `${apiMs}ms`;
+      document.getElementById('asyncBar').style.width = '10%';
+      setStatus('asyncDot', 'asyncMsg', 'running', 'Background: message queued, worker starting…');
+
+      // Step 3 — message enqueued in SQS
+      await delay(200);
+      node('as3', 'active');
+      tlog('asyncOut', '→ Message in SQS queue, worker triggered', 't-step');
+
+      // Poll /result until complete
+      let polls = 0;
+      let workerStartLogged = false;
+
+      pollTimer = setInterval(async () => {
+        polls++;
+        try {
+          const r = await fetch(`${base()}/result/${data.requestId}`);
+          const result = await r.json();
+
+          if (result.status === 'pending' && !workerStartLogged) {
+            workerStartLogged = true;
+            node('as3', 'done');
+            node('as4', 'active');
+            tlog('asyncOut', '→ Worker picked up message, calling Bedrock…', 't-step');
+            setStatus('asyncDot', 'asyncMsg', 'running', 'Worker is calling Bedrock in background…');
+          }
+
+          if (result.status === 'complete') {
+            clearInterval(pollTimer);
+            pollTimer = null;
+
+            const totalMs = Date.now() - t0;
+
+            node('as4', 'done');
+            await delay(120);
+            node('as5', 'active');
+            await delay(250);
+            node('as5', 'done');
+
+            tlog('asyncOut', `← Worker done (Bedrock: ${result.latency_ms}ms)`, 't-step');
+            tlog('asyncOut', `"${result.result}"`, 't-result');
+            tlog('asyncOut', `API: ${apiMs}ms · Total background: ~${totalMs}ms · Polls: ${polls}`, 't-timing');
+
+            setStatus('asyncDot', 'asyncMsg', 'done',
+              `Done — API: ${apiMs}ms instant, result ready in ~${totalMs}ms background`);
+            btn.disabled = false;
+
+          } else if (result.status === 'error') {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            node('as4', null);
+            tlog('asyncOut', `✗ Worker error: ${result.error_message}`, 't-error');
+            setStatus('asyncDot', 'asyncMsg', 'error', 'Worker error — check CloudWatch');
+            btn.disabled = false;
+          }
+        } catch (pollErr) {
+          tlog('asyncOut', `✗ Poll failed: ${pollErr.message}`, 't-error');
+        }
+      }, 1000);
+
+    } catch (err) {
+      node('as1', null);
+      tlog('asyncOut', `✗ ${err.message}`, 't-error');
+      setStatus('asyncDot', 'asyncMsg', 'error', 'Error — check the API URL and CORS');
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
