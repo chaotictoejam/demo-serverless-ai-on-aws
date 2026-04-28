@@ -97,9 +97,10 @@
     .arch {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       margin-bottom: 18px;
-      min-height: 64px;
+      min-height: 80px;
+      overflow-x: auto;
     }
 
     .node {
@@ -107,9 +108,9 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 8px 10px;
+      padding: 7px 9px;
       border-radius: 9px;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
       line-height: 1.35;
       text-align: center;
@@ -118,6 +119,10 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+
+    .node-icon { width: 30px; height: 30px; margin-bottom: 4px; }
+    .node-icons { display: flex; gap: 3px; margin-bottom: 4px; }
+    .node-icons img { width: 24px; height: 24px; }
 
     /* Sync nodes */
     .snode { background: #fff5f5; border-color: #fca5a5; color: #991b1b; opacity: 0.3; }
@@ -275,9 +280,18 @@
     <div class="arch">
       <div class="node snode" id="ss1">User</div>
       <span class="arrow">→</span>
-      <div class="node snode" id="ss2">API GW<br>→ Lambda</div>
+      <div class="node snode" id="ss2">
+        <div class="node-icons">
+          <img src="assets/api-gateway.svg" alt="API Gateway">
+          <img src="assets/lambda.svg" alt="Lambda">
+        </div>
+        API GW + Lambda
+      </div>
       <span class="arrow">→</span>
-      <div class="node snode" id="ss3">Bedrock<br>waiting…</div>
+      <div class="node snode" id="ss3">
+        <img class="node-icon" src="assets/bedrock.svg" alt="Bedrock">
+        Bedrock<br>waiting…
+      </div>
       <span class="arrow">→</span>
       <div class="node snode" id="ss4">Response</div>
     </div>
@@ -317,13 +331,33 @@
     <div class="arch">
       <div class="node anode" id="as1">User</div>
       <span class="arrow">→</span>
-      <div class="node anode" id="as2">Lambda<br>ingest</div>
+      <div class="node anode" id="as2">
+        <img class="node-icon" src="assets/api-gateway.svg" alt="API Gateway">
+        API GW
+      </div>
       <span class="arrow">→</span>
-      <div class="node anode" id="as3">SQS<br>queue</div>
+      <div class="node anode" id="as3">
+        <img class="node-icon" src="assets/lambda.svg" alt="Lambda">
+        Lambda<br>ingest
+      </div>
       <span class="arrow">→</span>
-      <div class="node anode" id="as4">Worker<br>+ Bedrock</div>
+      <div class="node anode" id="as4">
+        <img class="node-icon" src="assets/sqs.svg" alt="SQS">
+        SQS<br>queue
+      </div>
       <span class="arrow">→</span>
-      <div class="node anode" id="as5">Dynamo<br>result</div>
+      <div class="node anode" id="as5">
+        <div class="node-icons">
+          <img src="assets/lambda.svg" alt="Lambda">
+          <img src="assets/bedrock.svg" alt="Bedrock">
+        </div>
+        Worker<br>+ Bedrock
+      </div>
+      <span class="arrow">→</span>
+      <div class="node anode" id="as6">
+        <img class="node-icon" src="assets/dynamodb.svg" alt="DynamoDB">
+        DynamoDB<br>result
+      </div>
     </div>
 
     <button class="run-btn" id="asyncBtn">Run async demo</button>
@@ -474,7 +508,7 @@
     document.getElementById('asyncOut').innerHTML = '';
     document.getElementById('asyncApiTime').textContent = '—';
     document.getElementById('asyncBar').style.width = '0%';
-    resetNodes('as', 5);
+    resetNodes('as', 6);
     setStatus('asyncDot', 'asyncMsg', 'running', 'Sending…');
 
     // Step 1 — user sends
@@ -493,9 +527,10 @@
       const data = await res.json();
       const apiMs = Date.now() - t0;
 
-      // Step 2 — ingest returned instantly
+      // Step 2 — API GW + ingest Lambda returned instantly
       node('as1', 'done');
       node('as2', 'done');
+      node('as3', 'done');
       tlog('asyncOut', `← 202 Accepted in ${apiMs}ms ⚡  (caller is FREE)`, 't-step');
       tlog('asyncOut', `requestId: ${data.requestId}`, 't-result');
 
@@ -505,7 +540,7 @@
 
       // Step 3 — message enqueued in SQS
       await delay(200);
-      node('as3', 'active');
+      node('as4', 'active');
       tlog('asyncOut', '→ Message in SQS queue, worker triggered', 't-step');
 
       // Poll /result until complete
@@ -520,8 +555,8 @@
 
           if (result.status === 'pending' && !workerStartLogged) {
             workerStartLogged = true;
-            node('as3', 'done');
-            node('as4', 'active');
+            node('as4', 'done');
+            node('as5', 'active');
             tlog('asyncOut', '→ Worker picked up message, calling Bedrock…', 't-step');
             setStatus('asyncDot', 'asyncMsg', 'running', 'Worker is calling Bedrock in background…');
           }
@@ -532,11 +567,11 @@
 
             const totalMs = Date.now() - t0;
 
-            node('as4', 'done');
-            await delay(120);
-            node('as5', 'active');
-            await delay(250);
             node('as5', 'done');
+            await delay(120);
+            node('as6', 'active');
+            await delay(250);
+            node('as6', 'done');
 
             tlog('asyncOut', `← Worker done (Bedrock: ${result.latency_ms}ms)`, 't-step');
             tlog('asyncOut', `"${result.result}"`, 't-result');
@@ -549,7 +584,7 @@
           } else if (result.status === 'error') {
             clearInterval(pollTimer);
             pollTimer = null;
-            node('as4', null);
+            node('as5', null);
             tlog('asyncOut', `✗ Worker error: ${result.error_message}`, 't-error');
             setStatus('asyncDot', 'asyncMsg', 'error', 'Worker error — check CloudWatch');
             btn.disabled = false;
