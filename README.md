@@ -61,6 +61,34 @@ export API_URL="https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/demo"
 
 ---
 
+## Visual demo (demo.html)
+
+`demo.html` is a single-file browser UI that lets you drive both paths side-by-side
+without any tooling — just open the file in a browser.
+
+**How to use:**
+
+1. Deploy the stack and copy the API Gateway base URL (e.g. `https://abc123.execute-api.us-east-1.amazonaws.com/demo`).
+2. Open `demo.html` directly in a browser (`File → Open` or double-click).
+3. Paste the base URL into the **API Base URL** field — it is saved in `localStorage` so you only need to do this once.
+4. Optionally edit the shared **Prompt** field.
+5. Click **Run synchronous demo** and **Run async demo** to fire each path.
+
+**What it shows:**
+
+| Feature | Detail |
+|---|---|
+| Architecture diagrams | Animated node-by-node flow for both sync and async paths |
+| Terminal output | Step-by-step log with timing for every stage |
+| Response time bar | Visual comparison of sync vs async API latency |
+| Live polling | Async panel polls `/result/{id}` every second until complete |
+| Side-by-side result | Same model, same prompt — completely different user experience |
+
+> The file has no build step and no dependencies. It communicates directly with the deployed API,
+> so the stack must be running and the API URL must be configured for the buttons to work.
+
+---
+
 ## Live demo curl commands
 
 ### 1 — Sync path (show the wait)
