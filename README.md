@@ -29,7 +29,7 @@ ASYNC PATH
 
 | Requirement | Version |
 |---|---|
-| Node.js | 18 or later |
+| Node.js | 18 or later (Lambda functions run on Node.js 24) |
 | AWS CLI | configured with credentials for your account |
 | AWS CDK CLI | `npm install -g aws-cdk` |
 | CDK bootstrap | `cdk bootstrap` run at least once in your target account/region |

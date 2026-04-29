@@ -15,7 +15,7 @@ const BEDROCK_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
 const LAMBDA_TIMEOUT_SYNC = cdk.Duration.seconds(30);
 const LAMBDA_TIMEOUT_WORKER = cdk.Duration.seconds(60);
 const LAMBDA_TIMEOUT_FAST = cdk.Duration.seconds(10);
-const NODE_RUNTIME = lambda.Runtime.NODEJS_20_X;
+const NODE_RUNTIME = lambda.Runtime.NODEJS_24_X;
 
 function nodeFn(
   scope: Construct,
