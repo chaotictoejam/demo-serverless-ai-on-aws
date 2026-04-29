@@ -568,12 +568,14 @@
             const totalMs = Date.now() - t0;
 
             node('as5', 'done');
-            await delay(120);
+            tlog('asyncOut', `← Worker done (Bedrock: ${result.latency_ms}ms)`, 't-step');
+
+            await delay(150);
             node('as6', 'active');
-            await delay(250);
+            tlog('asyncOut', '→ Writing result to DynamoDB', 't-step');
+            await delay(1200);
             node('as6', 'done');
 
-            tlog('asyncOut', `← Worker done (Bedrock: ${result.latency_ms}ms)`, 't-step');
             tlog('asyncOut', `"${result.result}"`, 't-result');
             tlog('asyncOut', `API: ${apiMs}ms · Total background: ~${totalMs}ms · Polls: ${polls}`, 't-timing');
 
