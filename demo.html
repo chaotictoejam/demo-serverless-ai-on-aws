@@ -562,6 +562,7 @@
           }
 
           if (result.status === 'complete') {
+            if (!pollTimer) return;
             clearInterval(pollTimer);
             pollTimer = null;
 
@@ -584,6 +585,7 @@
             btn.disabled = false;
 
           } else if (result.status === 'error') {
+            if (!pollTimer) return;
             clearInterval(pollTimer);
             pollTimer = null;
             node('as5', null);
